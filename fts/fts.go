@@ -22,7 +22,7 @@ const (
 
 		CREATE VIRTUAL TABLE
 		IF NOT EXISTS notes
-		USING FTS5(title, body, uuid, tags, tokenize="trigram");
+		USING FTS5(title, body, uuid UNINDEXED, tags UNINDEXED, tokenize="porter trigram");
 	`
 
 	insertSQL = `
