@@ -131,11 +131,14 @@ const (
 	`
 	sqlExport = `
 		select
-			ZUNIQUEIDENTIFIER,
-			ZTITLE,
-			ZTEXT
+			note.ZUNIQUEIDENTIFIER,
+			note.ZTITLE,
+			note.ZTEXT,
+			GROUP_CONCAT(COALESCE(tag.ZTITLE, ''))
 		from
-			ZSFNOTE
+			ZSFNOTE note
+			LEFT OUTER JOIN Z_5TAGS tags ON note.Z_PK = tags.Z_5NOTES
+			LEFT OUTER JOIN ZSFNOTETAG tag ON tags.Z_13TAGS = tag.Z_PK
 		where
 			ZARCHIVED = 0 
 			and ZTRASHED = 0
@@ -201,6 +204,8 @@ type Record struct {
 	Title            string
 	Text             string
 	ModificationDate string
+	GUID             string
+	Tags             string
 }
 
 // Result references a specific note: its identifier and title
@@ -289,10 +294,10 @@ func (d *DB) Records() ([]*Record, error) {
 		return nil, errors.WithStack(rows.Err())
 	}
 
-	var guid, title, text string
+	var guid, title, text, tags string
 
 	for rows.Next() {
-		err := rows.Scan(&guid, &title, &text)
+		err := rows.Scan(&guid, &title, &text, &tags)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -301,6 +306,8 @@ func (d *DB) Records() ([]*Record, error) {
 			SHA:   guidToSHA(guid),
 			Title: title,
 			Text:  text,
+			GUID:  guid,
+			Tags:  tags,
 		}
 
 		records = append(records, record)
@@ -342,7 +349,7 @@ func (d *DB) QueryTitles(term string, exact bool) (Results, error) {
 	}
 	defer rows.Close()
 
-	return rowsToResults(rows)
+	return RowsToResults(rows)
 }
 
 // QueryAllTitles returns a list of all titles
@@ -353,7 +360,7 @@ func (d *DB) QueryAllTitles() (Results, error) {
 	}
 	defer rows.Close()
 
-	return rowsToResults(rows)
+	return RowsToResults(rows)
 }
 
 // QueryText searches for a term within the body or title of notes within the database.
@@ -366,7 +373,7 @@ func (d *DB) QueryText(term string) (Results, error) {
 
 	defer rows.Close()
 
-	return rowsToResults(rows)
+	return RowsToResults(rows)
 }
 
 // QueryTags returns a list of all tags
@@ -432,7 +439,7 @@ func (d *DB) QueryTag(tag string) ([]*Record, error) {
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
-		records = append(records, &Record{guid, title, text, moddate})
+		records = append(records, &Record{guid, title, text, moddate, guid, ""})
 	}
 
 	return records, nil
@@ -517,7 +524,8 @@ func (r *Result) TitleCase() string {
 	return util.ToSafeString(util.ToTitleCase(r.Title))
 }
 
-func rowsToResults(rows *sql.Rows) (Results, error) {
+// RowsToResults will pakcage a SQL row of (id, title, tags)
+func RowsToResults(rows *sql.Rows) (Results, error) {
 	var id string
 	var title string
 	var tags string

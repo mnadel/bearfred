@@ -7,6 +7,7 @@ import (
 	"github.com/mnadel/freddiebear/cmd/cleanup"
 	"github.com/mnadel/freddiebear/cmd/export"
 	"github.com/mnadel/freddiebear/cmd/forwardlinks"
+	"github.com/mnadel/freddiebear/cmd/fts"
 	"github.com/mnadel/freddiebear/cmd/graph"
 	"github.com/mnadel/freddiebear/cmd/journal"
 	"github.com/mnadel/freddiebear/cmd/search"
@@ -35,6 +36,7 @@ func main() {
 	cmd.AddCommand(tags.New())
 	cmd.AddCommand(cleanup.New())
 	cmd.AddCommand(titles.New())
+	cmd.AddCommand(fts.New())
 
 	if err := cmd.Execute(); err != nil {
 		log.Fatal(err)
