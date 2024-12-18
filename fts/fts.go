@@ -23,7 +23,6 @@ const (
 		CREATE VIRTUAL TABLE
 		IF NOT EXISTS notes
 		USING FTS5(title, body, uuid, tags, tokenize="trigram");
-
 	`
 
 	insertSQL = `
@@ -36,6 +35,22 @@ const (
         FROM notes
         WHERE (title MATCH '{param}') OR (body MATCH '{param}')
         ORDER BY RANK
+	`
+
+	readOnlyPragmaSQL = `
+		PRAGMA query_only = on;
+		PRAGMA synchronous = off;
+		PRAGMA mmap_size = 250000000;
+		PRAGMA temp_store = memory;
+		PRAGMA journal_mode = off;
+		PRAGMA cache_size = -25000;
+	`
+
+	infoSQL = `
+		SELECT
+			count(*) as record_count
+		FROM
+			notes
 	`
 )
 
@@ -74,28 +89,39 @@ func (f *FTS) Close() {
 }
 
 func (f *FTS) Info() string {
-	return strings.TrimSpace(fmt.Sprintf(`
-		DB File: %s
-	`, f.dbFile))
+	var err error
+	bearRecordCount := 0
+	count := -1
+
+	row := f.fts.QueryRow(infoSQL)
+	if row != nil {
+		err = row.Scan(&count)
+	}
+
+	f.bear.Export(func(r *db.Record) error {
+		bearRecordCount++
+		return nil
+	})
+
+	return fmt.Sprintf(`    DB File: %s
+FTS Records: %v
+      Error: %v
+ DB Records: %v`, f.dbFile, count, err, bearRecordCount)
 }
 
 func (f *FTS) Reindex() error {
-	allRecords, err := f.bear.Records()
+	_, err := f.fts.Exec(createSQL)
 	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	_, err = f.fts.Exec(createSQL)
-	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 
 	var lastError error
 
-	for _, r := range allRecords {
+	f.bear.Export(func(r *db.Record) error {
 		_, err := f.fts.Exec(insertSQL, r.Title, r.Text, r.GUID, r.Tags)
 		lastError = err
-	}
+		return err
+	})
 
 	return lastError
 }
@@ -116,9 +142,14 @@ func (f *FTS) Search(query string) (db.Results, error) {
 
 	records := make([]*db.Result, 0)
 
+	_, err := f.fts.Exec(readOnlyPragmaSQL)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	rows, err := f.fts.Query(sql)
 	if err != nil {
-		return nil, errors.WithStack(rows.Err())
+		return nil, errors.WithStack(err)
 	}
 
 	var guid, title, tags string

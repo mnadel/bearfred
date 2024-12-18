@@ -129,19 +129,22 @@ const (
 		ORDER BY
 			note.ZMODIFICATIONDATE DESC
 	`
+
 	sqlExport = `
-		select
+		SELECT
 			note.ZUNIQUEIDENTIFIER,
 			note.ZTITLE,
 			note.ZTEXT,
 			GROUP_CONCAT(COALESCE(tag.ZTITLE, ''))
-		from
+		FROM
 			ZSFNOTE note
 			LEFT OUTER JOIN Z_5TAGS tags ON note.Z_PK = tags.Z_5NOTES
 			LEFT OUTER JOIN ZSFNOTETAG tag ON tags.Z_13TAGS = tag.Z_PK
-		where
+		WHERE
 			ZARCHIVED = 0 
 			and ZTRASHED = 0
+		GROUP BY
+			note.ZUNIQUEIDENTIFIER
 	`
 
 	sqlGraph = `
