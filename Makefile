@@ -11,6 +11,9 @@ init:
 local:
 	go build -tags $(GOBUILD_TAGS)
 
+install:
+	go install -tags $(GOBUILD_TAGS)
+
 build: init
 	GOOS=darwin GOARCH=amd64 go build -tags $(GOBUILD_TAGS) -o target/amd64/freddiebear
 	GOOS=darwin GOARCH=arm64 go build -tags $(GOBUILD_TAGS) -o target/arm64/freddiebear
