@@ -54,12 +54,14 @@ const (
 	`
 )
 
+// FTS represents the FTS database.
 type FTS struct {
 	fts    *sql.DB
 	bear   *db.DB
 	dbFile string
 }
 
+// NewFTS creates a new FTS
 func NewFTS(bear *db.DB) (*FTS, error) {
 	var err error
 
@@ -84,10 +86,12 @@ func NewFTS(bear *db.DB) (*FTS, error) {
 	return &FTS{db, bear, fullDbPath}, nil
 }
 
+// Close closes the FTS database
 func (f *FTS) Close() {
 	f.fts.Close()
 }
 
+// Info returns information about the FTS database
 func (f *FTS) Info() string {
 	var err error
 	bearRecordCount := 0
@@ -109,6 +113,7 @@ FTS Records: %v
  DB Records: %v`, f.dbFile, count, err, bearRecordCount)
 }
 
+// Reindex will drop the database and reload it from Bear
 func (f *FTS) Reindex() error {
 	_, err := f.fts.Exec(createSQL)
 	if err != nil {
@@ -126,6 +131,7 @@ func (f *FTS) Reindex() error {
 	return lastError
 }
 
+// Search executes an FTS query.
 func (f *FTS) Search(query string) (db.Results, error) {
 	// see https://sqlite.org/fts5.html
 	// regex magic:
